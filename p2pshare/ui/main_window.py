@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -20,6 +20,14 @@ from p2pshare.ui.drop_zone import DropZone
 from p2pshare.ui.peer_list import PeerListPanel
 from p2pshare.ui.progress_panel import ProgressPanel
 from p2pshare.ui.styles import APP_QSS
+
+
+class _GuiBridge(QObject):
+    """Прокидывает события сети в GUI-поток (QueuedConnection)."""
+
+    peers_changed = pyqtSignal(object)
+    progress_changed = pyqtSignal(object)
+    error_occurred = pyqtSignal(str)
 
 
 class MainWindow(QMainWindow):
@@ -60,13 +68,24 @@ class MainWindow(QMainWindow):
 
         status = QStatusBar()
         self.setStatusBar(status)
-        status.showMessage("Каркас запущен. Реальные сокеты появятся в ветке feature-network.")
+        status.showMessage("UDP-поиск соседей запущен. Передача файлов — TCP чанками 64 КиБ.")
+
+        self._bridge = _GuiBridge(self)
+        self._bridge.peers_changed.connect(
+            self.peer_list.set_peers, Qt.ConnectionType.QueuedConnection
+        )
+        self._bridge.progress_changed.connect(
+            self._on_progress, Qt.ConnectionType.QueuedConnection
+        )
+        self._bridge.error_occurred.connect(
+            self._on_error, Qt.ConnectionType.QueuedConnection
+        )
 
         self.drop_zone.files_dropped.connect(self._on_files)
         self.controller.bind_ui(
-            on_peers=self.peer_list.set_peers,
-            on_progress=self._on_progress,
-            on_error=self._on_error,
+            on_peers=self._bridge.peers_changed.emit,
+            on_progress=self._bridge.progress_changed.emit,
+            on_error=self._bridge.error_occurred.emit,
         )
         self.controller.start()
 

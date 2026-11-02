@@ -29,8 +29,9 @@ class ApplicationController:
         self.local_peer_id = str(uuid.uuid4())
         codec = ProtocolCodec()
         self.registry = PeerRegistry(self.config, self.local_peer_id)
+        self.peer_registry = self.registry
         self.discovery = UDPDiscoveryService(
-            self.config, self.registry, codec, self.local_peer_id
+            self.config, self.peer_registry, codec, self.local_peer_id
         )
         self.transfer = TCPChunkTransfer(self.config, codec)
         self._on_peers: PeersChanged | None = None
