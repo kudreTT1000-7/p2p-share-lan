@@ -28,14 +28,26 @@ class TransferSession:
     def mark_transferring(self) -> None:
         self.progress.status = TransferStatus.TRANSFERRING
 
-    def record_chunk(self, chunk_index: int, payload: bytes) -> None:
-        """Заглушка записи чанка. Полная сборка — в ветке feature-network / core."""
+    def reset_staging(self) -> None:
+        if self.staging_path.exists():
+            self.staging_path.unlink()
+
+    def record_chunk(
+        self,
+        chunk_index: int,
+        payload: bytes,
+        *,
+        write_to_disk: bool = True,
+    ) -> None:
         expected = self.progress.manifest.chunk_size
         is_last = chunk_index == self.progress.manifest.chunk_count - 1
         if not is_last and len(payload) != expected:
             raise TransferError(
                 f"Чанк {chunk_index}: ожидалось {expected} байт, получено {len(payload)}"
             )
+        if write_to_disk:
+            with self.staging_path.open("ab") as handle:
+                handle.write(payload)
         self.progress.chunks_done = max(self.progress.chunks_done, chunk_index + 1)
         self.progress.bytes_done = min(
             self.progress.manifest.size_bytes,
