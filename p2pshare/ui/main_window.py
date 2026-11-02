@@ -73,6 +73,9 @@ class MainWindow(QMainWindow):
         self._poll = QTimer(self)
         self._poll.timeout.connect(self.controller.refresh_peers)
         self._poll.start(int(self.controller.config.discovery_interval_sec * 1000))
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     def _on_files(self, paths: list[str]) -> None:
         self.statusBar().showMessage(f"Выбрано файлов: {len(paths)}")
